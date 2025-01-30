@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { File } from './entities/file.entity';
@@ -18,7 +18,7 @@ export class FilesService {
 
   async create(file: Express.Multer.File, description?: string, userId?: string): Promise<File> {
     const originalFilePath = join('uploads/originals', file.filename);
-    const stampedFilePath = join('uploads/stamped', file.filename);
+    const stampedFilePath = join('uploads/stamped', `stamped-${file.filename}`);
 
     // Créer les répertoires s'ils n'existent pas
     if (!existsSync('uploads/originals')) {
@@ -31,11 +31,11 @@ export class FilesService {
     // Déplacer le fichier original vers le dossier des originaux
     renameSync(file.path, originalFilePath);
 
-    // Vérifier si c'est une image PNG
-    if (file.mimetype === 'image/png') {
-      await this.stampImage(stampedFilePath, userId);
+    // Vérifier si c'est une image PNG ou JPEG
+    if (file.mimetype === 'image/png' || file.mimetype === 'image/jpeg') {
+      await this.stampImage(originalFilePath, stampedFilePath, userId);
     } else {
-      // Copier simplement le fichier si ce n'est pas une image PNG
+      // Copier simplement le fichier si ce n'est pas une image PNG ou JPEG
       writeFileSync(stampedFilePath, readFileSync(originalFilePath));
     }
 
@@ -54,38 +54,65 @@ export class FilesService {
     return await this.fileRepository.save(newFile);
   }
 
-  private async stampImage(originalPath: string, stampedPath: string, userId?: string): Promise<void> {
+  private async stampImage(originalPath: string, stampedPath: string, userId: string): Promise<void> {
     const image = PNG.sync.read(readFileSync(originalPath));
     
     // Convertir l'UID en chaîne et encoder
-    const userIdString = userId || 'Unknown';
-    const encodedMessage = Buffer.from(userIdString).toString('base64');
-
+    const encodedMessage = Buffer.from(userId).toString('base64');
+  
     // Modifier légèrement les pixels pour "cacher" l'information
     for (let i = 0; i < encodedMessage.length; i++) {
       const charCode = encodedMessage.charCodeAt(i);
-      image.data[i * 4] = (image.data[i * 4] & 0xFE) | (charCode & 0x01); // Modifier le canal rouge
-      image.data[i * 4 + 1] = (image.data[i * 4 + 1] & 0xFE) | ((charCode >> 1) & 0x01); // Modifier le canal vert
-      image.data[i * 4 + 2] = (image.data[i * 4 + 2] & 0xFE) | ((charCode >> 2) & 0x01); // Modifier le canal bleu
+      for (let bit = 0; bit < 8; bit++) {
+        const index = i * 8 + bit;
+        const pixelIndex = index * 4;
+        image.data[pixelIndex] = (image.data[pixelIndex] & 0xFE) | ((charCode >> bit) & 0x01);
+      }
     }
-
+  
+    // Ajouter un marqueur de fin
+    const endMarker = '==';
+    for (let i = 0; i < endMarker.length; i++) {
+      const charCode = endMarker.charCodeAt(i);
+      for (let bit = 0; bit < 8; bit++) {
+        const index = (encodedMessage.length + i) * 8 + bit;
+        const pixelIndex = index * 4;
+        image.data[pixelIndex] = (image.data[pixelIndex] & 0xFE) | ((charCode >> bit) & 0x01);
+      }
+    }
+  
     // Sauvegarder l'image estampillée
     writeFileSync(stampedPath, PNG.sync.write(image));
   }
-
+  
   async verifyImage(filePath: string): Promise<string | null> {
     const image = PNG.sync.read(readFileSync(filePath));
     
     let decodedMessage = '';
+    let currentChar = 0;
+    let bitCount = 0;
+  
     for (let i = 0; i < image.data.length; i += 4) {
-      const charCode = (image.data[i] & 0x01) | ((image.data[i + 1] & 0x01) << 1) | ((image.data[i + 2] & 0x01) << 2);
-      decodedMessage += String.fromCharCode(charCode);
-      if (decodedMessage.endsWith('==')) break; // Fin du message encodé
+      currentChar |= (image.data[i] & 0x01) << bitCount;
+      bitCount++;
+  
+      if (bitCount === 8) {
+        decodedMessage += String.fromCharCode(currentChar);
+        currentChar = 0;
+        bitCount = 0;
+  
+        if (decodedMessage.endsWith('==')) {
+          break;
+        }
+      }
     }
-
+  
     try {
-      return Buffer.from(decodedMessage, 'base64').toString('utf-8');
+      // Enlever le marqueur de fin et décoder
+      const encodedMessage = decodedMessage.slice(0, -2);
+      return Buffer.from(encodedMessage, 'base64').toString('utf-8');
     } catch (e) {
+      console.error('Error decoding message:', e);
       return null;
     }
   }
@@ -94,11 +121,11 @@ export class FilesService {
     return `This action returns all files`;
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} file`;
+  findOne(id: string): Promise<File> {
+    return this.fileRepository.findOneBy({ id });
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: string): Promise<void> {
     await this.fileRepository.delete(id);
   }
 }
