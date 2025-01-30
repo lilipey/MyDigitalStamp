@@ -10,6 +10,7 @@ import { JwtGuard } from './auth/guards/jwt.guard'; // Ensure this path is corre
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ConfigModule } from '@nestjs/config';
+// import { CertificatesModule } from './certificates/certificates.module';
 
 @Module({
   imports: [
@@ -28,7 +29,8 @@ import { ConfigModule } from '@nestjs/config';
     }),
     FilesModule, 
     UsersModule,
-    AuthModule,// Import your FilesModule
+    AuthModule,
+    // CertificatesModule,// Import your FilesModule
   ],
   controllers: [AppController],
   providers: [

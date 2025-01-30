@@ -16,9 +16,11 @@ export class FilesService {
     const newFile = this.fileRepository.create({
       filename: file.filename,
       mimetype: file.mimetype,
-      path: file.path,
+      original_file_path: file.path,
+      stamped_file_path: file.path,
       description: description || 'Uploaded file',
-      data: readFileSync(file.path),
+
+      // data: readFileSync(file.path),
     });
     return await this.fileRepository.save(newFile);
   }

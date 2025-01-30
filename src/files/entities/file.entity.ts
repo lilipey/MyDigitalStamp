@@ -9,13 +9,16 @@ export class File {
   filename: string;
 
   @Column()
-  path: string;
+  original_file_path: string;
+
+  @Column({ nullable: true })
+  stamped_file_path: string;
 
   @Column()
   mimetype: string;
 
-  @Column('longblob')
-  data: Buffer;
+  // @Column('longblob')
+  // data: Buffer;
   
   @Column({ nullable: true })
   description: string;

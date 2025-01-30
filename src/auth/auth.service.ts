@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import { User } from 'src/users/users.entity';
+import { User, UserRole } from 'src/users/users.entity';
 import { AccessToken } from './types/AccessToken';
 import { UsersService } from 'src/users/users.service';
 import { RegisterRequestDto } from './dtos/register-request.dto';
@@ -26,18 +26,28 @@ export class AuthService {
   }
 
   async login(user: User): Promise<AccessToken> {
-    const payload = { email: user.email, id: user.id };
+    const payload = { email: user.email, id: user.id, role: user.role };
     return { access_token: this.jwtService.sign(payload) };
   }
 
-  async register(user: RegisterRequestDto): Promise<AccessToken> {
-    const existingUser = await this.usersService.findOneByEmail(user.email);
+  async register(registerRequestDto: RegisterRequestDto): Promise<AccessToken> {
+    const existingUser = await this.usersService.findOneByEmail(registerRequestDto.email);
     if (existingUser) {
-      throw new BadRequestException('email already exists');
+      throw new BadRequestException('Email already exists');
     }
-    const hashedPassword = await bcrypt.hash(user.password, 10);
-    const newUser: User = { ...user, password: hashedPassword };
+    const hashedPassword = await bcrypt.hash(registerRequestDto.password, 10);
+    const newUser: User = {
+      ...registerRequestDto,
+      password: hashedPassword,
+      id: undefined, // Laissez TypeORM générer l'ID automatiquement
+    };
+    console.log(newUser);
     await this.usersService.create(newUser);
     return this.login(newUser);
+  }
+
+
+  async isAdmin(user: User): Promise<boolean> {
+    return user.role === UserRole.ADMIN;
   }
 }
