@@ -1,18 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { CreateFileDto } from './dto/create-file.dto';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { File } from './entities/file.entity';
+import { readFileSync } from 'fs';
 import { UpdateFileDto } from './dto/update-file.dto';
 
 @Injectable()
 export class FilesService {
-  fileRepository: any;
-  getFile(filename: string) {
-    throw new Error('Method not implemented.');
+  constructor(
+    @InjectRepository(File)
+    private fileRepository: Repository<File>
+  ) {}
+
+  async create(file: Express.Multer.File, description?: string): Promise<File> {
+    const newFile = this.fileRepository.create({
+      filename: file.filename,
+      mimetype: file.mimetype,
+      path: file.path,
+      description: description || 'Uploaded file',
+      data: readFileSync(file.path),
+    });
+    return await this.fileRepository.save(newFile);
   }
-  create(createFileDto: CreateFileDto, path: string, mimetype: string) {
-    //save file 
-    
-    return 'This action adds a new file';
-  } 
   // async create(filename: string, mimetype: string, buffer: Buffer) {
   //   const file = this.fileRepository.create({ filename, mimetype, data: buffer });
   //   return this.fileRepository.save(file);
@@ -32,4 +41,14 @@ export class FilesService {
   remove(id: number) {
     return `This action removes a #${id} file`;
   }
+
+  // private stegcloak = new StegCloak(true, false);
+
+  // hideMessage(coverText: string, secretMessage: string, password: string): string {
+  //   return this.stegcloak.hide(secretMessage, password, coverText);
+  // }
+
+  // revealMessage(stegoText: string, password: string): string {
+  //   return this.stegcloak.reveal(stegoText, password);
+  // }
 }

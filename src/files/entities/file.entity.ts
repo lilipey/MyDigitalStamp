@@ -14,6 +14,12 @@ export class File {
   @Column()
   mimetype: string;
 
+  @Column('longblob')
+  data: Buffer;
+  
+  @Column({ nullable: true })
+  description: string;
+
   @CreateDateColumn()
   createdAt: Date;
 }

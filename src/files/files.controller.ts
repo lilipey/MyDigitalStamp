@@ -1,24 +1,24 @@
 import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Res, StreamableFile } from '@nestjs/common';
 import { Response } from 'express';
 import { Express } from 'express';
-import { diskStorage, Multer } from 'multer';
+import { diskStorage, memoryStorage, Multer } from 'multer';
 import { FilesService } from './files.service';
 import { extname, join } from 'path';
 import { CreateFileDto } from './dto/create-file.dto';
 import { UpdateFileDto } from './dto/update-file.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { createReadStream } from 'fs';
+import { createReadStream, readFileSync } from 'fs';
 
 @Controller('files')
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
-  @Post()
-  create(@Body() createFileDto: CreateFileDto) {
-    const path = 'default/path'; // Replace with actual path
-    const mimetype = 'application/octet-stream'; // Replace with actual mimetype
-    return this.filesService.create(createFileDto, path, mimetype);
-  }
+  // @Post()
+  // create(@Body() createFileDto: CreateFileDto) {
+  //   const path = 'default/path'; // Replace with actual path
+  //   const mimetype = 'application/octet-stream'; // Replace with actual mimetype
+  //   return this.filesService.create(createFileDto, path, mimetype);
+  // }
 
   @Get()
   findAll() {
@@ -48,21 +48,17 @@ export class FilesController {
         callback(null, file.fieldname + '-' + uniqueSuffix + extname(file.originalname));
       },
     }),
-  }))
-  uploadFile(@UploadedFile() file: Express.Multer.File) {
-    return this.filesService.create(file.filename, file.path, file.mimetype);
-  }
-  // @Post('upload')
-  // @UseInterceptors(FileInterceptor('file'))
-  // async uploadFile(@UploadedFile() file: Express.Multer.File) {
-  //   return this.filesService.create(file.originalname, file.mimetype, file.buffer);
-  // }
+}))
+async uploadFile(@UploadedFile() file: Express.Multer.File, @Body('description') description?: string) {
+  console.log(file);
+  return await this.filesService.create(file, description);
+}
+
   @Get('download/:filename')
-  getFile(): StreamableFile {
-    const file = createReadStream(join(process.cwd(), 'package.json'));
+  getFile(@Param('filename') filename: string): StreamableFile {
+    const file = createReadStream(join(process.cwd(), 'uploads', filename));
     return new StreamableFile(file);
   }
-
-
 }
+
 
