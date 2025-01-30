@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
-// import { Certificate } from 'src/certificates/entities/certificate.entity';
-
+import { File } from '../files/entities/file.entity';
+import { UUID } from 'typeorm/driver/mongodb/bson.typings';
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',
@@ -8,7 +8,7 @@ export enum UserRole {
 
 @Entity({ name: 'user' })
 export class User {
-  @PrimaryGeneratedColumn()
+  @PrimaryGeneratedColumn('uuid')
   id: string;
 
   @Column()
@@ -30,6 +30,6 @@ export class User {
   })
   role: UserRole;
 
-  // @OneToMany(() => Certificate, certificate => certificate.user)
-  // certificates: Certificate[];
+  @OneToMany(() => File, file => file.user)
+  files: File[];
 }

@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, UpdateResult } from 'typeorm';
 import { User } from './users.entity';
 import { UUID } from 'crypto';
+// import { UUID } from 'crypto';
 
 @Injectable()
 export class UsersService {
@@ -23,7 +24,7 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
-  update(userId: UUID, userInformation: Partial<User>): Promise<UpdateResult> {
+  update(userId: string, userInformation: Partial<User>): Promise<UpdateResult> {
     return this.usersRepository.update(userId, userInformation);
   }
 }

@@ -1,28 +1,30 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn } from 'typeorm';
+import { Entity, Column, PrimaryGeneratedColumn, CreateDateColumn, ManyToOne } from 'typeorm';
+import { User } from 'src/users/users.entity';
+import { UUID } from 'crypto';
 
 @Entity()
 export class File {
-  @PrimaryGeneratedColumn()
-  id: number;
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
   @Column()
   filename: string;
 
   @Column()
-  original_file_path: string;
+  originalFilePath: string;
 
   @Column({ nullable: true })
-  stamped_file_path: string;
+  stampedFilePath: string;
 
   @Column()
   mimetype: string;
 
-  // @Column('longblob')
-  // data: Buffer;
-  
   @Column({ nullable: true })
   description: string;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @ManyToOne(() => User, user => user.files)
+  user: User;
 }

@@ -39,13 +39,12 @@ export class AuthService {
     const newUser: User = {
       ...registerRequestDto,
       password: hashedPassword,
-      id: undefined, // Laissez TypeORM générer l'ID automatiquement
+      id: undefined,
+      files: [],
     };
-    console.log(newUser);
     await this.usersService.create(newUser);
     return this.login(newUser);
   }
-
 
   async isAdmin(user: User): Promise<boolean> {
     return user.role === UserRole.ADMIN;

@@ -1,64 +1,58 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, Res, StreamableFile } from '@nestjs/common';
-import { Response } from 'express';
-import { Express } from 'express';
-import { diskStorage, memoryStorage, Multer } from 'multer';
-import { FilesService } from './files.service';
-import { extname, join } from 'path';
-import { CreateFileDto } from './dto/create-file.dto';
-import { UpdateFileDto } from './dto/update-file.dto';
+// files.controller.ts
+import { Controller, Post, UseInterceptors, UploadedFile, Body, Get, Param, Delete, UseGuards, NotFoundException, StreamableFile } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { createReadStream, readFileSync } from 'fs';
+import { FilesService } from './files.service';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/role.decorator';
+import { UserRole } from '../users/users.entity';
+import { GetUser } from '../auth/decorators/user.decorator';
+import { User } from '../users/users.entity';
+import { createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 
 @Controller('files')
+@UseGuards(RolesGuard)
 export class FilesController {
   constructor(private readonly filesService: FilesService) {}
 
-  // @Post()
-  // create(@Body() createFileDto: CreateFileDto) {
-  //   const path = 'default/path'; // Replace with actual path
-  //   const mimetype = 'application/octet-stream'; // Replace with actual mimetype
-  //   return this.filesService.create(createFileDto, path, mimetype);
-  // }
-
-  @Get()
-  findAll() {
-    return this.filesService.findAll();
+  @Post('upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadFile(
+    @UploadedFile() file: Express.Multer.File,
+    @GetUser() user: User,
+    @Body('description') description: string
+  ): Promise<any> {
+    return await this.filesService.create(file, description, user.id);
   }
 
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.filesService.findOne(+id);
-  }
-
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateFileDto: UpdateFileDto) {
-    return this.filesService.update(+id, updateFileDto);
+  async findOne(@Param('id') id: string) {
+    return await this.filesService.findOne(+id);
   }
 
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.filesService.remove(+id);
+  @Roles(UserRole.ADMIN)
+  async remove(@Param('id') id: string) {
+    await this.filesService.remove(+id);
+    return { message: 'File deleted successfully' };
   }
-  @Post('upload')
-  @UseInterceptors(FileInterceptor('file', {
-    storage: diskStorage({
-      destination: './uploads',
-      filename: (req, file, callback) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-        callback(null, file.fieldname + '-' + uniqueSuffix + extname(file.originalname));
-      },
-    }),
-}))
-async uploadFile(@UploadedFile() file: Express.Multer.File, @Body('description') description?: string) {
-  console.log(file);
-  return await this.filesService.create(file, description);
-}
 
   @Get('download/:filename')
   getFile(@Param('filename') filename: string): StreamableFile {
-    const file = createReadStream(join(process.cwd(), 'uploads', filename));
+    const filePath = join(process.cwd(), 'uploads', 'stamped', filename);
+    if (!existsSync(filePath)) {
+      throw new NotFoundException(`File not found: ${filename}`);
+    }
+    const file = createReadStream(filePath);
     return new StreamableFile(file);
   }
+
+  @Get('verify/:filename')
+  async verifyFile(@Param('filename') filename: string): Promise<string | null> {
+    const filePath = join(process.cwd(), 'uploads', 'stamped', filename);
+    if (!existsSync(filePath)) {
+      throw new NotFoundException(`File not found: ${filename}`);
+    }
+    return await this.filesService.verifyImage(filePath);
+  }
 }
-
-
