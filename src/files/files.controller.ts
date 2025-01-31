@@ -1,4 +1,4 @@
-import { Controller, Post, UseInterceptors, UploadedFile, Body, Get, Param, Delete, UseGuards, NotFoundException } from '@nestjs/common';
+import { Controller, Post, UseInterceptors, UploadedFile, Body, Get, Param, Delete, UseGuards, NotFoundException, BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { FilesService } from './files.service';
 import { diskStorage } from 'multer';
@@ -51,6 +51,14 @@ export class FilesController {
     const file = createReadStream(filePath);
     return new StreamableFile(file);
   }
+  @Post('verify-upload')
+  @UseInterceptors(FileInterceptor('file'))
+  async verifyUploadedFile(@UploadedFile() file: Express.Multer.File): Promise<string | null> {
+    if (!file) {
+      throw new BadRequestException('Aucun fichier n\'a été uploadé');
+    }
+    return await this.filesService.verifyImageFromBuffer(file.buffer);
+  }
 
   @Get('verify/:filename')
   async verifyFile(@Param('filename') filename: string): Promise<string | null> {
@@ -60,4 +68,5 @@ export class FilesController {
     }
     return await this.filesService.verifyImage(filePath);
   }
+  
 }

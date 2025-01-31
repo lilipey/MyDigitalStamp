@@ -1,6 +1,6 @@
 import { Entity, Column, PrimaryGeneratedColumn, OneToMany } from 'typeorm';
 import { File } from '../files/entities/file.entity';
-import { UUID } from 'typeorm/driver/mongodb/bson.typings';
+
 export enum UserRole {
   USER = 'user',
   ADMIN = 'admin',

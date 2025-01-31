@@ -56,35 +56,20 @@ export class FilesService {
 
   private async stampImage(originalPath: string, stampedPath: string, userId: string): Promise<void> {
     const image = PNG.sync.read(readFileSync(originalPath));
-    
-    // Convertir l'UID en chaîne et encoder
-    const encodedMessage = Buffer.from(userId).toString('base64');
+    const message = userId + '||END';
+    const messageBytes = Buffer.from(message, 'utf-8');
   
-    // Modifier légèrement les pixels pour "cacher" l'information
-    for (let i = 0; i < encodedMessage.length; i++) {
-      const charCode = encodedMessage.charCodeAt(i);
+    for (let i = 0; i < messageBytes.length; i++) {
+      const byte = messageBytes[i];
       for (let bit = 0; bit < 8; bit++) {
-        const index = i * 8 + bit;
-        const pixelIndex = index * 4;
-        image.data[pixelIndex] = (image.data[pixelIndex] & 0xFE) | ((charCode >> bit) & 0x01);
+        const index = (i * 8 + bit) * 4;
+        if (index >= image.data.length) break;
+        image.data[index] = (image.data[index] & 0xFE) | ((byte >> bit) & 1);
       }
     }
   
-    // Ajouter un marqueur de fin
-    const endMarker = '==';
-    for (let i = 0; i < endMarker.length; i++) {
-      const charCode = endMarker.charCodeAt(i);
-      for (let bit = 0; bit < 8; bit++) {
-        const index = (encodedMessage.length + i) * 8 + bit;
-        const pixelIndex = index * 4;
-        image.data[pixelIndex] = (image.data[pixelIndex] & 0xFE) | ((charCode >> bit) & 0x01);
-      }
-    }
-  
-    // Sauvegarder l'image estampillée
     writeFileSync(stampedPath, PNG.sync.write(image));
   }
-  
   async verifyImage(filePath: string): Promise<string | null> {
     const image = PNG.sync.read(readFileSync(filePath));
     
@@ -116,6 +101,35 @@ export class FilesService {
       return null;
     }
   }
+
+  async verifyImageFromBuffer(buffer: Buffer): Promise<string | null> {
+    try {
+      const image = PNG.sync.read(buffer);
+      let message = '';
+      let byte = 0;
+  
+      for (let i = 0; i < image.data.length; i += 32) {
+        byte = 0;
+        for (let bit = 0; bit < 8; bit++) {
+          if (i + bit * 4 >= image.data.length) break;
+          byte |= (image.data[i + bit * 4] & 1) << bit;
+        }
+        message += String.fromCharCode(byte);
+        if (message.endsWith('||END')) {
+          break;
+        }
+      }
+  
+      const userId = message.split('||')[0];
+      console.log('Decoded userId:', userId);
+      return userId;
+    } catch (e) {
+      console.error('Erreur lors du décodage du message:', e);
+      return null;
+    }
+  }
+  
+  
 
   findAll() {
     return `This action returns all files`;
